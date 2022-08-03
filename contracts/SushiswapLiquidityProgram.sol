@@ -10,14 +10,14 @@ import "hardhat/console.sol";
 import "./interfaces/IWETH.sol";
 
 contract SushiAddLiquidity {
-    address public owner;
+    address private owner;
     IUniswapV2Router02 private router;
-    address public factory;
-    address public weth;
-    address public masterChef;
+    address private factory;
+    address private weth;
+    address private masterChef;
 
-    address public constant MASTER_CHEF_V1 = 0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd;
-    address public constant MASTER_CHEF_V2 = 0xEF0881eC094552b2e128Cf945EF17a6752B4Ec5d;
+    address private constant MASTER_CHEF_V1 = 0xc2EdaD668740f1aA35E4D8f227fB8E17dcA888Cd;
+    address private constant MASTER_CHEF_V2 = 0xEF0881eC094552b2e128Cf945EF17a6752B4Ec5d;
     address private constant SUSHI = 0x6B3595068778DD592e39A122f4f5a5cF09C90fE2;
 
     constructor(address _router) {
@@ -68,9 +68,6 @@ contract SushiAddLiquidity {
             address(this), 
             block.timestamp
         );
-        console.log("===============JOIN=============");
-        console.log("liquidity:", liquidity);
-        console.log("users sushi before:", IERC20(SUSHI).balanceOf(owner));
         
         // Approve MasterChef to use the SLP tokens
         address pair = IUniswapV2Factory(factory).getPair(tokenA, tokenB);
@@ -107,20 +104,21 @@ contract SushiAddLiquidity {
 
         // Withdraw SLP tokens
         if(masterChef == MASTER_CHEF_V1) {
-            console.log("===============WITHDRAW=============");
-            console.log("sushi before withdraw:", IERC20(SUSHI).balanceOf(address(this)));
-            console.log("pending sushi before withdraw:", IMasterChef(masterChef).pendingSushi(pid, address(this)));
             IMasterChef(masterChef).withdraw(pid, liquidity);
-            console.log("sushi after withdraw:", IERC20(SUSHI).balanceOf(address(this)));
-            console.log("pending sushi after withdraw:", IMasterChef(masterChef).pendingSushi(pid, address(this)));
         } else {
-            IMasterChefV2(masterChef).withdraw(pid, liquidity, address(this));
+            IMasterChefV2(masterChef).withdrawAndHarvest(pid, liquidity, address(this));
         }
+
+        // Transfer SUSHI from contract to user
+        IERC20(SUSHI).transfer(
+            owner, 
+            IERC20(SUSHI).balanceOf(address(this))
+        );
 
         // Get pair address for desired tokens
         address pair = IUniswapV2Factory(factory).getPair(tokenA, tokenB);
 
-        //Get exact liquidity owner has 
+        //Get exact liquidity the contract has 
         liquidity = IERC20(pair).balanceOf(address(this));
         IERC20(pair).approve(address(router), liquidity);
 
@@ -160,7 +158,5 @@ contract SushiAddLiquidity {
             // Collect SUSHI rewards in masterChefV2
             IMasterChefV2(masterChef).harvest(pid, owner);
         }
-        console.log("===================CLAIM=====================");
-        console.log("owner's SUSHI after claim:", IERC20(SUSHI).balanceOf(owner));
     }
 }
