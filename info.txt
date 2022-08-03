@@ -1,5 +1,0 @@
--mastercheff v1 pid=1 para usdc-weth
-
--harvest en masterchefv2
-
--Erase console logs from smart contract
